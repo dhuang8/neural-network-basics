@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<title>Digit recognition</title>
+<html>
+<body>
+</div>
+<div id="board" style="text-align: center;">
+	<div class="intro">
+		Write a digit
+	</div>
+<canvas id="myCanvas" width="280" height="280" style="border:1px solid #d3d3d3;">
+Your browser does not support the HTML5 canvas tag.</canvas>
+<br>
+<input class="clear" type="button" value="clear">
+<input class="guess" type="button" value="calc">
+<div class="output">
+
+</div>
+</div>
+<script src="http://code.jquery.com/jquery-1.8.0.min.js"></script>
+<script src="nn2.js"></script>
+<script>
+$(document).ready(function(){
+	$("input#start").one('click', function(e) {
+		e.preventDefault();
+		$("#intro").hide();
+		$("#board").show();
+	});
+
+var linewidth=20;
+
+var canvas = document.getElementById("myCanvas");
+var context = canvas.getContext('2d');
+var color = "#000";
+
+$("input.clear").on("click",function(){
+	clearBoard();
+});
+
+$("input.guess").on("click",function(){
+	let imagedata = context.getImageData(0, 0, 280, 280);
+	let width = imagedata.width;
+	let height = imagedata.height;
+	let pixel = imagedata.data;
+	let pixeldata = [];
+
+
+	for (let x = 0; x<height;x++) {
+		pixeldata[x] = [];
+		for (let y = 0; y<width;y++) {
+			pixeldata[x][y] = pixel[(x*height+y)*4+3];
+		}
+	}
+
+	let shrinktop = -1;
+	for (let x=0;x<pixeldata.length*3/4;x++) {
+		let notzeroes = pixeldata[x].some(pixel=>{
+			return pixel>0;
+		})
+		if (notzeroes) {
+			shrinktop = x;
+			break;
+		}
+	}
+
+	let shrinkbottom = -1;
+	for (let x=pixeldata.length-1;x>pixeldata.length/4;x--) {
+		let notzeroes = pixeldata[x].some(pixel=>{
+			return pixel>0;
+		})
+		if (notzeroes) {
+			shrinkbottom = pixeldata.length-1-x;
+			break;
+		}
+	}
+
+	let shrinkleft = -1;
+	for (let y=0;y<pixeldata[0].length*3/4;y++) {
+		for (let x=0;x<pixeldata.length;x++) {
+			if (pixeldata[x][y] !=0){
+				shrinkleft = y;
+				break;
+			}
+		}
+		if (shrinkleft>-1) break;
+	}
+
+	let shrinkright = -1;
+	for (let y=pixeldata[0].length-1;y>pixeldata[0].length/4;y--) {
+		for (let x=0;x<pixeldata.length;x++) {
+			if (pixeldata[x][y] !=0){
+				shrinkright = pixeldata[0].length-1-y;
+				break;
+			}
+		}
+		if (shrinkright>-1) break;
+	}
+
+	let diff = shrinktop + shrinkbottom - shrinkleft - shrinkright
+	let paddingx;
+	let paddingy;
+	if (diff > 0) {
+		paddingx=diff;
+		paddingy = 0;
+	} else {
+		paddingx = 0;
+		paddingy = -diff;
+	}
+	let input2d = [];
+	let xlength = pixeldata.length - shrinktop - shrinkbottom + paddingx;
+	let ylength = pixeldata[0].length - shrinkleft - shrinkright + paddingy;
+	for (let x=0;x<28;x++) {
+		input2d[x] = [];
+		for (let y=0;y<28;y++) {
+			if (x<2 || y <2) input2d[x][y]=0;
+			else if (x>25 || y > 25) input2d[x][y]=0;
+			else {
+				let newx = Math.round((x-2)/24*xlength + shrinktop - paddingx/2);
+				let newy = Math.round((y-2)/24*ylength + shrinkleft - paddingy/2);
+				if (newx >-1 && newx<280 && newy >-1 && newy<280 ) {
+					input2d[x][y] = pixeldata[newx][newy]/255;
+				} else {
+					input2d[x][y] = 0
+				}
+			}
+		}
+	}
+	//print
+	str = ""
+	for (let x = 0; x<28;x+=1) {
+		for (let y = 0; y<28;y+=1) {
+			if (input2d[x][y]>0){
+				let grad = parseInt(input2d[x][y]*9)
+				str += grad
+				str += grad
+			} else {
+				str += ".."
+			}
+		}
+		str += "\n"
+	}
+	console.log(str);
+
+	let input = []
+	for (let y = 0;y<input2d.length;y++){
+		input = input.concat(input2d[y]);
+	}
+	let output = guess(input)
+	outputstring = `Is this your number? ${output[0][0]}<br><br>other stuff:<br>`
+	outputstring += output.map(num=>{
+		return `${num[0]} : ${Math.round(num[1]*100)}%`
+	}).join("<br>")
+	$(".output").html(outputstring)
+});
+
+function sendMessage(object){
+}
+
+function writeMessage(canvas, message) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.font = '18pt Calibri';
+    context.fillStyle = 'black';
+    context.fillText(message, 10, 25);
+  }
+  
+  
+  function getMousePos(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
+  }
+
+  var drawLine = function (from, to, col, lineWidth) {
+	  context.beginPath();
+	  context.shadowBlur = 10
+	  context.shadowColor  = 'black'
+	  context.moveTo(from.x, from.y);
+	  context.lineWidth = lineWidth;
+	  context.lineTo(to.x, to.y);
+	  context.strokeStyle = col;
+	  context.lineCap = 'round';
+	  context.stroke();
+  }
+  
+  function clearBoard(){
+	  //canvas.width=canvas.width;
+		context.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  
+  function setColor(col){
+ 		color=col;
+  }
+
+var c = $("#myCanvas");
+
+var mousepos;
+var drawing = false;
+
+c.on("mousedown", function(e){
+	e.preventDefault();
+	drawing=true;
+	mousepos = getMousePos(canvas, e);
+	drawLine(mousepos,{x:mousepos.x,y:mousepos.y+.1},color,linewidth);
+	sendMessage({func:"draw",from:mousepos,to:{x:mousepos.x,y:mousepos.y+.1},color:color,linewidth:linewidth})
+//    console.log(e);
+});
+
+c.on("touchstart", function(e){
+	e.preventDefault();
+	drawing=true;
+	console.log(e);
+	mousepos = getMousePos(canvas, e.originalEvent.changedTouches[0]);
+	drawLine(mousepos,{x:mousepos.x,y:mousepos.y+.1},color,linewidth);
+	sendMessage({func:"draw",from:mousepos,to:{x:mousepos.x,y:mousepos.y+.1},color:color,linewidth:linewidth})
+//    console.log(e);
+});
+
+c.on("mousemove",function (e){
+	e.preventDefault();
+	if (drawing){
+	var newmousepos = getMousePos(canvas, e);
+	drawLine(mousepos,newmousepos,color,linewidth);
+	sendMessage({func:"draw",from:mousepos,to:newmousepos,color:color,linewidth:linewidth})
+	mousepos=newmousepos;
+    //var message = 'Mouse position: ' + mousepos.x + ',' + mousepos.y;
+    //console.log(message);
+	}
+});
+
+c.on("touchmove",function (e){
+	e.preventDefault();
+	if (drawing){
+	var newmousepos = getMousePos(canvas, e.originalEvent.changedTouches[0]);
+	drawLine(mousepos,newmousepos,color,linewidth);
+	sendMessage({func:"draw",from:mousepos,to:newmousepos,color:color,linewidth:linewidth})
+	mousepos=newmousepos;
+    //var message = 'Mouse position: ' + mousepos.x + ',' + mousepos.y;
+    //console.log(message);
+	}
+});
+
+c.on("mouseup mouseleave touchend",function (e){
+	e.preventDefault();
+	drawing=false;
+});
+
+c.on("touchend touchleave",function (e){
+	e.preventDefault();
+	drawing=false;
+});
+
+$("input.linewidth").on("input",function(){
+	$(".linewidthnumber").html($(this).val());
+	linewidth=$(this).val();
+});
+});
+</script>
+
+</body>
+</html>
