@@ -2,6 +2,10 @@
 
 A barebones neural network written in C++ without any dependencies.
 
+## Training set
+
+[Download `train-images-idx3-ubyte.gz` and `train-labels-idx1-ubyte.gz` here](http://yann.lecun.com/exdb/mnist/) and extract to root. 
+
 ## Calculating weights and biases
 
 Run `main.cpp` in C++ to find the weights and biases. Final weights and biases are printed into `weight.txt` and `bias.txt`. Testing data from [EMNIST dataset](https://www.nist.gov/itl/products-and-services/emnist-dataset).
