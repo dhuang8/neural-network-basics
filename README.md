@@ -2,6 +2,8 @@
 
 A barebones neural network written in C++ without any dependencies.
 
+[Working example can be found here](https://dhuang8.github.io/digit/index.html)
+
 ## Training set
 
 [Download `train-images-idx3-ubyte.gz` and `train-labels-idx1-ubyte.gz` here](http://yann.lecun.com/exdb/mnist/) and extract to root. 
